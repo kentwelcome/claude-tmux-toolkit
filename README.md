@@ -24,15 +24,15 @@ A [Claude Code](https://claude.ai/claude-code) plugin that auto-opens NeoVim in 
 
 ## Installation
 
-### Using `/plugin add` command (recommended)
+### Using `/plugin marketplace add` command (recommended)
 
 Inside Claude Code, run:
 
 ```
-/plugin add kentwelcome/claude-nvim-sidebar
+/plugin marketplace add kentwelcome/claude-nvim-sidebar
 ```
 
-This registers the marketplace and enables the plugin in one step.
+This registers the marketplace and makes the plugin available for installation.
 
 ### Manual installation
 
