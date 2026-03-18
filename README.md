@@ -24,7 +24,17 @@ A [Claude Code](https://claude.ai/claude-code) plugin that auto-opens NeoVim in 
 
 ## Installation
 
-### From GitHub (recommended)
+### Using `/plugin add` command (recommended)
+
+Inside Claude Code, run:
+
+```
+/plugin add kentwelcome/claude-nvim-sidebar
+```
+
+This registers the marketplace and enables the plugin in one step.
+
+### Manual installation
 
 **Step 1** — Register the marketplace in your `~/.claude/settings.json` (user scope) or `.claude/settings.json` (project scope):
 
@@ -57,7 +67,7 @@ Add to `.claude/settings.json` in your project:
     "claude-nvim-sidebar": {
       "source": {
         "source": "directory",
-        "path": "/path/to/claude-nvim-sidebar"
+        "path": "/path/to/claude-nvim-sidebar/.claude-plugin"
       }
     }
   },
