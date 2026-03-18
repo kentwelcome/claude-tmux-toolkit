@@ -1,0 +1,41 @@
+# claude-nvim-sidebar
+
+A Claude Code plugin that auto-opens NeoVim in a tmux split pane when files are edited.
+
+## Project Structure
+
+```
+.claude-plugin/       # Plugin metadata (marketplace.json, plugin.json)
+hooks/hooks.json      # PostToolUse hook definition — triggers on Write|Edit
+scripts/nvim-open.sh  # Main hook script — manages tmux panes and nvim instances
+scripts/diff-signs.lua # Git diff gutter signs — sourced by nvim after each edit
+```
+
+## How the Hook Works
+
+1. Claude Code calls Write or Edit → `hooks.json` triggers `nvim-open.sh`
+2. `nvim-open.sh` reads JSON from stdin (`tool_input.file_path` or `tool_response.filePath`)
+3. Opens or reuses a nvim instance in a tmux split, communicating via server socket at `/tmp/nvim-claude-<session>`
+4. Sources `diff-signs.lua` in nvim to show git diff markers in the gutter
+
+## Development
+
+Test locally by adding to `.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "claude-nvim-sidebar": {
+      "source": { "source": "directory", "path": "/path/to/claude-nvim-sidebar" }
+    }
+  },
+  "enabledPlugins": { "claude-nvim-sidebar@claude-nvim-sidebar": true }
+}
+```
+
+Then restart Claude Code inside tmux. Any Write/Edit will trigger the hook.
+
+## Requirements
+
+- tmux, NeoVim 0.7+, jq
+- Must run Claude Code inside a tmux session

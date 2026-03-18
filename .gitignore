@@ -1,0 +1,8 @@
+# Claude Code local settings (personal overrides, not for team)
+.claude/
+
+# Test artifacts
+test_file.txt
+
+# macOS
+.DS_Store
