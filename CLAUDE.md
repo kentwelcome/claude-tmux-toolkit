@@ -35,6 +35,15 @@ Test locally by adding to `.claude/settings.json`:
 
 Then restart Claude Code inside tmux. Any Write/Edit will trigger the hook.
 
+## Dev Policy
+
+### Versioning & Branching
+
+- **Bug fix**: bump patch version (e.g. 1.0.1 → 1.0.2), commit directly to main
+- **New feature**: bump minor version, reset patch to 0 (e.g. 1.0.2 → 1.1.0), create a PR — do NOT push to main directly
+- Version must be updated in `plugin.json:version` only. `marketplace.json` versions are only updated when adding a new plugin to the project
+- Apply version bumps automatically with every commit/PR — do not skip or ask
+
 ## Requirements
 
 - tmux, NeoVim 0.7+, jq

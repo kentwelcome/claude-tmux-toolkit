@@ -59,7 +59,13 @@ claude plugin install claude-nvim-sidebar@claude-nvim-sidebar --scope user
 
 ### From local path (for development)
 
-Add to `.claude/settings.json` in your project:
+**Step 1** — Clone the repo:
+
+```bash
+git clone https://github.com/kentwelcome/claude-nvim-sidebar.git
+```
+
+**Step 2** — Add to `~/.claude/settings.json` (user scope) or `.claude/settings.json` (project scope):
 
 ```json
 {
@@ -67,7 +73,7 @@ Add to `.claude/settings.json` in your project:
     "claude-nvim-sidebar": {
       "source": {
         "source": "directory",
-        "path": "/path/to/claude-nvim-sidebar/.claude-plugin"
+        "path": "/absolute/path/to/claude-nvim-sidebar/.claude-plugin"
       }
     }
   },
@@ -76,6 +82,24 @@ Add to `.claude/settings.json` in your project:
   }
 }
 ```
+
+> **Note**: The `path` must be an absolute path pointing to the `.claude-plugin` directory inside the cloned repo.
+
+**Step 3** — Start Claude Code inside a tmux session and reload plugins:
+
+```
+/reload-plugins
+```
+
+**Step 4** — Trigger a file edit (Write or Edit) to verify the nvim sidebar opens.
+
+#### Development workflow
+
+After making changes to scripts or hooks:
+
+1. Edit the files in the repo (e.g. `scripts/nvim-open.sh`, `hooks/hooks.json`)
+2. Run `/reload-plugins` inside Claude Code to pick up hook changes
+3. Trigger a file edit to test — the hooks run the scripts directly from your local repo path, so script changes take effect immediately without reloading
 
 ## Recommended NeoVim Config
 
