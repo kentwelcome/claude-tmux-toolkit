@@ -1,4 +1,4 @@
-# claude-nvim-sidebar
+# claude-tmux-toolkit
 
 A [Claude Code](https://claude.ai/claude-code) plugin that auto-opens NeoVim in a tmux split pane when Claude edits files — giving you a real-time sidebar view of every change.
 
@@ -29,7 +29,7 @@ A [Claude Code](https://claude.ai/claude-code) plugin that auto-opens NeoVim in 
 Inside Claude Code, run:
 
 ```
-/plugin marketplace add kentwelcome/claude-nvim-sidebar
+/plugin marketplace add kentwelcome/claude-tmux-toolkit
 ```
 
 This registers the marketplace and makes the plugin available for installation.
@@ -44,7 +44,7 @@ This registers the marketplace and makes the plugin available for installation.
     "claude-tmux-toolkit": {
       "source": {
         "source": "github",
-        "repo": "kentwelcome/claude-nvim-sidebar"
+        "repo": "kentwelcome/claude-tmux-toolkit"
       }
     }
   }
@@ -62,7 +62,7 @@ claude plugin install tmux-toolkit@claude-tmux-toolkit --scope user
 **Step 1** — Clone the repo:
 
 ```bash
-git clone https://github.com/kentwelcome/claude-nvim-sidebar.git
+git clone https://github.com/kentwelcome/claude-tmux-toolkit.git
 ```
 
 **Step 2** — Add to `~/.claude/settings.json` (user scope) or `.claude/settings.json` (project scope):
@@ -73,7 +73,7 @@ git clone https://github.com/kentwelcome/claude-nvim-sidebar.git
     "claude-tmux-toolkit": {
       "source": {
         "source": "directory",
-        "path": "/absolute/path/to/claude-nvim-sidebar/.claude-plugin"
+        "path": "/absolute/path/to/claude-tmux-toolkit/.claude-plugin"
       }
     }
   },

@@ -1,4 +1,4 @@
-# claude-nvim-sidebar
+# claude-tmux-toolkit
 
 A Claude Code plugin that auto-opens NeoVim in a tmux split pane when files are edited.
 
@@ -29,7 +29,7 @@ Test locally by adding to `.claude/settings.json`:
 {
   "extraKnownMarketplaces": {
     "claude-tmux-toolkit": {
-      "source": { "source": "directory", "path": "/path/to/claude-nvim-sidebar" }
+      "source": { "source": "directory", "path": "/path/to/claude-tmux-toolkit" }
     }
   },
   "enabledPlugins": { "tmux-toolkit@claude-tmux-toolkit": true }

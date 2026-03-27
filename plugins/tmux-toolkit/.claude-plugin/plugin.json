@@ -6,8 +6,8 @@
     "name": "Kent Huang",
     "email": "kentwelcome@gmail.com"
   },
-  "homepage": "https://github.com/kentwelcome/claude-nvim-sidebar",
-  "repository": "https://github.com/kentwelcome/claude-nvim-sidebar",
+  "homepage": "https://github.com/kentwelcome/claude-tmux-toolkit",
+  "repository": "https://github.com/kentwelcome/claude-tmux-toolkit",
   "license": "MIT",
   "keywords": ["nvim", "neovim", "tmux", "sidebar", "editor", "hooks"]
 }
