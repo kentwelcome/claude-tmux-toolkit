@@ -28,11 +28,11 @@ Test locally by adding to `.claude/settings.json`:
 ```json
 {
   "extraKnownMarketplaces": {
-    "claude-nvim-sidebar": {
+    "claude-tmux-toolkit": {
       "source": { "source": "directory", "path": "/path/to/claude-nvim-sidebar" }
     }
   },
-  "enabledPlugins": { "claude-nvim-sidebar@claude-nvim-sidebar": true }
+  "enabledPlugins": { "tmux-toolkit@claude-tmux-toolkit": true }
 }
 ```
 

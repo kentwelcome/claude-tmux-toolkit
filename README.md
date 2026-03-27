@@ -41,7 +41,7 @@ This registers the marketplace and makes the plugin available for installation.
 ```json
 {
   "extraKnownMarketplaces": {
-    "claude-nvim-sidebar": {
+    "claude-tmux-toolkit": {
       "source": {
         "source": "github",
         "repo": "kentwelcome/claude-nvim-sidebar"
@@ -54,7 +54,7 @@ This registers the marketplace and makes the plugin available for installation.
 **Step 2** — Install the plugin:
 
 ```bash
-claude plugin install claude-nvim-sidebar@claude-nvim-sidebar --scope user
+claude plugin install tmux-toolkit@claude-tmux-toolkit --scope user
 ```
 
 ### From local path (for development)
@@ -70,7 +70,7 @@ git clone https://github.com/kentwelcome/claude-nvim-sidebar.git
 ```json
 {
   "extraKnownMarketplaces": {
-    "claude-nvim-sidebar": {
+    "claude-tmux-toolkit": {
       "source": {
         "source": "directory",
         "path": "/absolute/path/to/claude-nvim-sidebar/.claude-plugin"
@@ -78,7 +78,7 @@ git clone https://github.com/kentwelcome/claude-nvim-sidebar.git
     }
   },
   "enabledPlugins": {
-    "claude-nvim-sidebar@claude-nvim-sidebar": true
+    "tmux-toolkit@claude-tmux-toolkit": true
   }
 }
 ```
@@ -140,10 +140,10 @@ The plugin registers a `PostToolUse` hook on `Write` and `Edit` tool calls:
 ## Uninstall
 
 ```bash
-claude plugin uninstall claude-nvim-sidebar@claude-nvim-sidebar
+claude plugin uninstall tmux-toolkit@claude-tmux-toolkit
 ```
 
-Then remove the `claude-nvim-sidebar` entry from `extraKnownMarketplaces` in your settings.json.
+Then remove the `claude-tmux-toolkit` entry from `extraKnownMarketplaces` in your settings.json.
 
 ## License
 
