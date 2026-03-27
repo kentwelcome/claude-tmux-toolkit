@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-# Resolve script directory at top level (BASH_SOURCE is unbound inside functions with set -u)
+# Resolve script directory once at top level so functions can safely use SCRIPT_DIR
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ init_env() {
     DIFF_SIGNS="${SCRIPT_DIR}/diff-signs.lua"
 
     # Full path to nvim — needed when tmux split-window inherits a minimal PATH
-    NVIM=$(which nvim 2>/dev/null) || { echo "nvim not found" >&2; exit 1; }
+    NVIM=$(command -v nvim 2>/dev/null) || { echo "nvim not found" >&2; exit 1; }
 }
 
 # ---------------------------------------------------------------------------
@@ -74,22 +74,31 @@ open_in_existing_nvim() {
         "$NVIM" --server "$SOCK" --remote-send "<Cmd>checktime<CR>" 2>/dev/null || true
         "$NVIM" --server "$SOCK" --remote-send "<Cmd>luafile ${DIFF_SIGNS}<CR>" 2>/dev/null || true
     else
-        # Fallback: send keystrokes when the socket is missing
-        tmux send-keys -t "$nvim_pane" Escape ":e $FILE_PATH" Enter ':checktime' Enter \
-            ":luafile ${DIFF_SIGNS}" Enter
+        # Fallback: send keystrokes when the socket is missing.
+        # Use :execute with fnameescape() so paths with spaces or special chars are safe.
+        local escaped_file escaped_diff
+        escaped_file=$(printf "%s" "$FILE_PATH" | sed "s/'/''/g")
+        escaped_diff=$(printf "%s" "$DIFF_SIGNS" | sed "s/'/''/g")
+
+        tmux send-keys -t "$nvim_pane" Escape \
+            ":execute 'edit ' . fnameescape('${escaped_file}')" Enter \
+            ':checktime' Enter \
+            ":execute 'luafile ' . fnameescape('${escaped_diff}')" Enter
     fi
 }
 
 create_split_with_nvim() {
     # No split exists — create a horizontal split with a fresh nvim instance.
     rm -f "$SOCK"   # remove stale socket from a previous nvim that exited
-    tmux split-window -h "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\""
+    tmux split-window -h -- "$NVIM" --listen "$SOCK" -c "luafile ${DIFF_SIGNS}" "$FILE_PATH"
 }
 
 launch_nvim_in_fish_pane() {
     # An idle fish shell sits in the sidebar — start nvim inside it.
-    tmux send-keys -t "$fish_pane" \
-        "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\"" Enter
+    # Use printf %q to safely escape paths with spaces or metacharacters.
+    local cmd
+    cmd=$(printf '%q --listen %q -c %q %q' "$NVIM" "$SOCK" "luafile ${DIFF_SIGNS}" "$FILE_PATH")
+    tmux send-keys -t "$fish_pane" "$cmd" Enter
 }
 
 # ---------------------------------------------------------------------------
