@@ -3,6 +3,10 @@
 
 # Test artifacts
 test_file.txt
+test_file2.txt
+
+# Nvim log
+.nvimlog
 
 # macOS
 .DS_Store
