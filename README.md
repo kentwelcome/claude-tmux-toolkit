@@ -8,12 +8,14 @@ A collection of [Claude Code](https://claude.ai/claude-code) plugins for tmux pr
 
 Auto-opens NeoVim in a tmux split pane when Claude edits files — giving you a real-time sidebar view of every change.
 
-- **Auto-open**: NeoVim opens in a tmux horizontal split on the first file edit
+- **Auto-open**: NeoVim opens in a new tmux split on the first file edit (when no split exists)
+- **Fish sidebar support**: If you already have an idle fish shell split open, NeoVim launches inside it instead of creating a new one
 - **Real-time sync**: File content refreshes instantly when Claude makes changes
 - **Diff signs**: Git diff markers (`+`/`-`) in the gutter show exactly which lines were added or removed
 - **Multi-file**: New files open as buffers in the same NeoVim instance (`:bn`/`:bp` to switch)
-- **Smart reuse**: Detects existing splits and NeoVim instances — never creates duplicates
-- **tmux-aware**: Only activates inside tmux sessions; no-op otherwise
+- **Smart reuse**: Detects existing NeoVim panes and updates them via server RPC — never creates duplicates
+- **Non-intrusive**: Exits silently when 2+ split panes are already open, or when the existing split is neither NeoVim nor fish
+- **Safehouse compatible**: Works when Claude Code is launched via [agent-safehouse](https://agent-safehouse.dev), which strips the `TMUX` environment variable
 
 ### rename-window
 
@@ -30,6 +32,7 @@ Renames the tmux window to the current project folder name in PascalCase on sess
 - [tmux](https://github.com/tmux/tmux)
 - [NeoVim](https://neovim.io/) (0.7+ for `--listen`/`--server`/`--remote`) — required for `nvim-sidebar`
 - [jq](https://jqlang.github.io/jq/) — required for `nvim-sidebar`
+- [fish](https://fishshell.com/) — optional; enables the fish sidebar workflow (see below)
 - [Claude Code](https://claude.ai/claude-code)
 
 ## Installation
@@ -135,13 +138,25 @@ set-option -g focus-events on
 
 ## How nvim-sidebar Works
 
-The plugin registers a `PostToolUse` hook on `Write` and `Edit` tool calls:
+The plugin registers a `PostToolUse` hook on `Write` and `Edit` tool calls. On each hook invocation, the script inspects the current tmux window and picks a path:
 
-1. **First file edit** — Opens a tmux horizontal split with NeoVim listening on a server socket (`/tmp/nvim-claude-<session>`)
-2. **Same file edited again** — Sends `:checktime` to the existing NeoVim pane to refresh
-3. **Different file edited** — Opens the file as a new buffer in the existing NeoVim via `--remote`
-4. **Existing split detected** — Reuses it instead of creating a new one
-5. **After every edit** — Runs `git diff` and places `+`/`-` signs in the gutter via NeoVim's sign API
+| Window state | Action |
+|---|---|
+| NeoVim pane exists | Open/refresh file via server RPC (`--remote` + `:checktime`) |
+| No split (single pane) | Create a new horizontal split and launch NeoVim |
+| One split — idle fish shell | Launch NeoVim inside the fish pane |
+| One split — other shell | Exit silently |
+| 2+ splits | Exit silently |
+
+NeoVim is started with `--listen /tmp/nvim-claude-<session>` so subsequent edits find it by socket. After every edit, `git diff` is run and `+`/`-` signs are placed in the gutter via NeoVim's sign API.
+
+### Fish sidebar workflow
+
+If you keep a fish shell pane open alongside Claude, `nvim-sidebar` will launch NeoVim inside it rather than creating a new split. This lets you control the layout manually — open the fish pane when you want the sidebar, close it when you don't.
+
+### agent-safehouse compatibility
+
+When Claude Code is launched via `safehouse`, the `TMUX` environment variable is stripped by the sandbox. The hook detects tmux by querying `tmux display-message` directly (which finds the attached session via its server socket), so it works correctly without relying on the environment variable.
 
 ## NeoVim Keybindings (for buffer navigation)
 
