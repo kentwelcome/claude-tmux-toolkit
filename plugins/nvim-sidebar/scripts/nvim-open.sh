@@ -47,6 +47,9 @@ done < <(tmux list-panes -F "#{pane_id}${SEP}#{pane_current_command}")
 
 pane_count=$(tmux list-panes | wc -l | tr -d ' ')
 
+# 2+ split panels (3+ panes total) — exit silently
+[ "$pane_count" -ge 3 ] && exit 0
+
 if [ -n "$nvim_pane" ]; then
     # Nvim pane exists — use server RPC to open file and refresh (non-disruptive)
     if [ -S "$SOCK" ]; then
@@ -64,7 +67,7 @@ elif [ "$pane_count" -eq 1 ]; then
     rm -f "$SOCK"
     tmux split-window -h "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\""
 elif [ -n "$fish_pane" ]; then
-    # Idle fish sidebar pane exists — launch nvim inside it (fish has full PATH)
-    tmux send-keys -t "$fish_pane" "nvim --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\"" Enter
+    # Idle fish sidebar pane exists — launch nvim inside it using full path
+    tmux send-keys -t "$fish_pane" "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\"" Enter
 fi
 # Otherwise: split exists but not fish — exit silently
