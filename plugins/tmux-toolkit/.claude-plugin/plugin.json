@@ -1,7 +1,7 @@
 {
-  "name": "claude-nvim-sidebar",
+  "name": "tmux-toolkit",
   "description": "Auto-opens NeoVim in a tmux split pane as a sidebar when Claude Code edits files. Keeps nvim synced in real-time with all changes.",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "author": {
     "name": "Kent Huang",
     "email": "kentwelcome@gmail.com"
