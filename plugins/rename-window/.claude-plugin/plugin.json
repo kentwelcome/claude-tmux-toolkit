@@ -1,0 +1,13 @@
+{
+  "name": "rename-window",
+  "description": "Renames the tmux window to the current project folder name in PascalCase on session start.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Kent Huang",
+    "email": "kentwelcome@gmail.com"
+  },
+  "homepage": "https://github.com/kentwelcome/claude-tmux-toolkit",
+  "repository": "https://github.com/kentwelcome/claude-tmux-toolkit",
+  "license": "MIT",
+  "keywords": ["tmux", "window", "rename", "hooks"]
+}

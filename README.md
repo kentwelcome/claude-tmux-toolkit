@@ -1,12 +1,12 @@
 # claude-tmux-toolkit
 
-A [Claude Code](https://claude.ai/claude-code) plugin that auto-opens NeoVim in a tmux split pane when Claude edits files — giving you a real-time sidebar view of every change.
+A collection of [Claude Code](https://claude.ai/claude-code) plugins for tmux productivity.
 
-## Demo
+## Plugins
 
-![Claude Code + NeoVim sidebar with diff signs](assets/demo.png)
+### nvim-sidebar
 
-## Features
+Auto-opens NeoVim in a tmux split pane when Claude edits files — giving you a real-time sidebar view of every change.
 
 - **Auto-open**: NeoVim opens in a tmux horizontal split on the first file edit
 - **Real-time sync**: File content refreshes instantly when Claude makes changes
@@ -15,11 +15,21 @@ A [Claude Code](https://claude.ai/claude-code) plugin that auto-opens NeoVim in 
 - **Smart reuse**: Detects existing splits and NeoVim instances — never creates duplicates
 - **tmux-aware**: Only activates inside tmux sessions; no-op otherwise
 
+### rename-window
+
+Renames the tmux window to the current project folder name in PascalCase on session start.
+
+- e.g. `claude-tmux-toolkit` → `ClaudeTmuxToolkit`
+
+## Demo
+
+![Claude Code + NeoVim sidebar with diff signs](assets/demo.png)
+
 ## Requirements
 
 - [tmux](https://github.com/tmux/tmux)
-- [NeoVim](https://neovim.io/) (0.7+ for `--listen`/`--server`/`--remote`)
-- [jq](https://jqlang.github.io/jq/)
+- [NeoVim](https://neovim.io/) (0.7+ for `--listen`/`--server`/`--remote`) — required for `nvim-sidebar`
+- [jq](https://jqlang.github.io/jq/) — required for `nvim-sidebar`
 - [Claude Code](https://claude.ai/claude-code)
 
 ## Installation
@@ -32,7 +42,12 @@ Inside Claude Code, run:
 /plugin marketplace add kentwelcome/claude-tmux-toolkit
 ```
 
-This registers the marketplace and makes the plugin available for installation.
+Then install individual plugins:
+
+```bash
+claude plugin install nvim-sidebar@claude-tmux-toolkit --scope user
+claude plugin install rename-window@claude-tmux-toolkit --scope user
+```
 
 ### Manual installation
 
@@ -51,10 +66,11 @@ This registers the marketplace and makes the plugin available for installation.
 }
 ```
 
-**Step 2** — Install the plugin:
+**Step 2** — Install the plugins:
 
 ```bash
-claude plugin install tmux-toolkit@claude-tmux-toolkit --scope user
+claude plugin install nvim-sidebar@claude-tmux-toolkit --scope user
+claude plugin install rename-window@claude-tmux-toolkit --scope user
 ```
 
 ### From local path (for development)
@@ -73,17 +89,16 @@ git clone https://github.com/kentwelcome/claude-tmux-toolkit.git
     "claude-tmux-toolkit": {
       "source": {
         "source": "directory",
-        "path": "/absolute/path/to/claude-tmux-toolkit/.claude-plugin"
+        "path": "/absolute/path/to/claude-tmux-toolkit"
       }
     }
   },
   "enabledPlugins": {
-    "tmux-toolkit@claude-tmux-toolkit": true
+    "nvim-sidebar@claude-tmux-toolkit": true,
+    "rename-window@claude-tmux-toolkit": true
   }
 }
 ```
-
-> **Note**: The `path` must be an absolute path pointing to the `.claude-plugin` directory inside the cloned repo.
 
 **Step 3** — Start Claude Code inside a tmux session and reload plugins:
 
@@ -97,13 +112,13 @@ git clone https://github.com/kentwelcome/claude-tmux-toolkit.git
 
 After making changes to scripts or hooks:
 
-1. Edit the files in the repo (e.g. `scripts/nvim-open.sh`, `hooks/hooks.json`)
+1. Edit the files in the repo (e.g. `plugins/nvim-sidebar/scripts/nvim-open.sh`)
 2. Run `/reload-plugins` inside Claude Code to pick up hook changes
 3. Trigger a file edit to test — the hooks run the scripts directly from your local repo path, so script changes take effect immediately without reloading
 
 ## Recommended NeoVim Config
 
-For the best experience, add this to your NeoVim config so files auto-reload when changed externally:
+For the best experience with `nvim-sidebar`, add this to your NeoVim config so files auto-reload when changed externally:
 
 ```lua
 vim.opt.autoread = true
@@ -118,7 +133,7 @@ Also ensure tmux has focus events enabled in your `.tmux.conf`:
 set-option -g focus-events on
 ```
 
-## How It Works
+## How nvim-sidebar Works
 
 The plugin registers a `PostToolUse` hook on `Write` and `Edit` tool calls:
 
@@ -140,7 +155,8 @@ The plugin registers a `PostToolUse` hook on `Write` and `Edit` tool calls:
 ## Uninstall
 
 ```bash
-claude plugin uninstall tmux-toolkit@claude-tmux-toolkit
+claude plugin uninstall nvim-sidebar@claude-tmux-toolkit
+claude plugin uninstall rename-window@claude-tmux-toolkit
 ```
 
 Then remove the `claude-tmux-toolkit` entry from `extraKnownMarketplaces` in your settings.json.
