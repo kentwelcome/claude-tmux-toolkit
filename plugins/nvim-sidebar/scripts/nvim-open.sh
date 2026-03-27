@@ -14,60 +14,105 @@
 
 set -euo pipefail
 
-# Detect tmux session. Works even when TMUX env var is stripped by sandboxes
-# (e.g. agent-safehouse), as tmux finds the attached session via its server socket.
-TMUX_SESSION=$(tmux display-message -p '#S' 2>/dev/null) || exit 0
-
-# Extract file path from hook JSON input
-FILE_PATH=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty')
-[ -z "$FILE_PATH" ] && exit 0
-
-# Unique nvim server socket per tmux session
-SOCK="/tmp/nvim-claude-${TMUX_SESSION}"
-
-# Lua script that places git diff signs in the current buffer's gutter
+# Resolve script directory at top level (BASH_SOURCE is unbound inside functions with set -u)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DIFF_SIGNS="${SCRIPT_DIR}/diff-signs.lua"
 
-# Full path to nvim — needed when tmux split-window inherits a minimal PATH
-NVIM=$(which nvim 2>/dev/null) || { echo "nvim not found" >&2; exit 1; }
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
 
-# Scan panes in the current window for nvim and fish.
-# Use ASCII unit separator (0x1f) to avoid clashing with any command name.
-nvim_pane=""
-fish_pane=""
-SEP=$'\x1f'
-while IFS="$SEP" read -r pane_id current_cmd; do
-    if [[ "$current_cmd" == "nvim" && -z "$nvim_pane" ]]; then
-        nvim_pane="$pane_id"
-    elif [[ "$current_cmd" == "fish" && -z "$fish_pane" ]]; then
-        fish_pane="$pane_id"
-    fi
-done < <(tmux list-panes -F "#{pane_id}${SEP}#{pane_current_command}")
+detect_tmux_session() {
+    # Works even when TMUX env var is stripped by sandboxes (e.g. agent-safehouse),
+    # as tmux finds the attached session via its server socket.
+    TMUX_SESSION=$(tmux display-message -p '#S' 2>/dev/null) || exit 0
+}
 
-pane_count=$(tmux list-panes | wc -l | tr -d ' ')
+parse_file_path() {
+    FILE_PATH=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty')
+    if [[ -z "$FILE_PATH" ]]; then exit 0; fi
+}
 
-# 2+ split panels (3+ panes total) — exit silently
-[ "$pane_count" -ge 3 ] && exit 0
+init_env() {
+    SOCK="/tmp/nvim-claude-${TMUX_SESSION}"
+    DIFF_SIGNS="${SCRIPT_DIR}/diff-signs.lua"
 
-if [ -n "$nvim_pane" ]; then
-    # Nvim pane exists — use server RPC to open file and refresh (non-disruptive)
-    if [ -S "$SOCK" ]; then
+    # Full path to nvim — needed when tmux split-window inherits a minimal PATH
+    NVIM=$(which nvim 2>/dev/null) || { echo "nvim not found" >&2; exit 1; }
+}
+
+# ---------------------------------------------------------------------------
+# Pane detection
+# ---------------------------------------------------------------------------
+
+scan_panes() {
+    # Find the first nvim pane and first fish pane in the current tmux window.
+    # Uses ASCII unit separator (0x1f) to avoid clashing with any command name.
+    nvim_pane=""
+    fish_pane=""
+    local sep=$'\x1f'
+
+    while IFS="$sep" read -r pane_id current_cmd; do
+        if [[ "$current_cmd" == "nvim" && -z "$nvim_pane" ]]; then
+            nvim_pane="$pane_id"
+        elif [[ "$current_cmd" == "fish" && -z "$fish_pane" ]]; then
+            fish_pane="$pane_id"
+        fi
+    done < <(tmux list-panes -F "#{pane_id}${sep}#{pane_current_command}")
+
+    pane_count=$(tmux list-panes | wc -l | tr -d ' ')
+}
+
+# ---------------------------------------------------------------------------
+# Actions — one function per scenario
+# ---------------------------------------------------------------------------
+
+open_in_existing_nvim() {
+    # Reuse the running nvim instance to open the file and refresh diff signs.
+    if [[ -S "$SOCK" ]]; then
+        # Preferred: server RPC (non-disruptive, works in any nvim mode)
         "$NVIM" --server "$SOCK" --remote "$FILE_PATH" 2>/dev/null || true
         "$NVIM" --server "$SOCK" --remote-send "<Cmd>checktime<CR>" 2>/dev/null || true
         "$NVIM" --server "$SOCK" --remote-send "<Cmd>luafile ${DIFF_SIGNS}<CR>" 2>/dev/null || true
     else
-        # No socket — fall back to send-keys but use <Cmd> to avoid mode disruption
+        # Fallback: send keystrokes when the socket is missing
         tmux send-keys -t "$nvim_pane" Escape ":e $FILE_PATH" Enter ':checktime' Enter \
             ":luafile ${DIFF_SIGNS}" Enter
     fi
-elif [ "$pane_count" -eq 1 ]; then
-    # No split at all — create one with nvim using its full path.
-    # Remove stale socket if present (left over from a previous nvim that exited).
-    rm -f "$SOCK"
+}
+
+create_split_with_nvim() {
+    # No split exists — create a horizontal split with a fresh nvim instance.
+    rm -f "$SOCK"   # remove stale socket from a previous nvim that exited
     tmux split-window -h "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\""
-elif [ -n "$fish_pane" ]; then
-    # Idle fish sidebar pane exists — launch nvim inside it using full path
-    tmux send-keys -t "$fish_pane" "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\"" Enter
-fi
-# Otherwise: split exists but not fish — exit silently
+}
+
+launch_nvim_in_fish_pane() {
+    # An idle fish shell sits in the sidebar — start nvim inside it.
+    tmux send-keys -t "$fish_pane" \
+        "$NVIM --listen \"$SOCK\" -c \"luafile ${DIFF_SIGNS}\" \"$FILE_PATH\"" Enter
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+    detect_tmux_session
+    parse_file_path
+    init_env
+    scan_panes
+
+    # Too many splits already — don't add more complexity
+    if [[ "$pane_count" -ge 3 ]]; then exit 0; fi
+
+    if [[ -n "$nvim_pane" ]]; then
+        open_in_existing_nvim
+    elif [[ "$pane_count" -eq 1 ]]; then
+        create_split_with_nvim
+    elif [[ -n "$fish_pane" ]]; then
+        launch_nvim_in_fish_pane
+    fi
+    # Otherwise: split exists but not fish — exit silently
+}
+
+main
