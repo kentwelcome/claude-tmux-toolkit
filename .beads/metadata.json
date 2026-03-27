@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "claude_nvim_sidebar",
+  "project_id": "4250c19c-c454-4031-b20b-3ac6639caea2"
+}
