@@ -55,6 +55,16 @@ Then restart Claude Code inside tmux. Any Write/Edit will trigger the hook.
 - Version must be updated in the affected plugin's `plugin.json:version`. Also update `marketplace.json` to keep in sync: the matching entry in `plugins[].version` must always match its `plugin.json:version`
 - Apply version bumps automatically with every commit/PR — do not skip or ask
 
+### Bash Scripts
+
+- Structure bash scripts using modularized functions with descriptive names — avoid flat imperative style. The `main` function should read like a narrative of the script's logic.
+- Avoid `[[ condition ]] && exit` inside functions under `set -e` — use `if/then` instead.
+- Run `shellcheck` on all modified bash scripts before committing.
+
+### Testing
+
+- After modifying hook scripts, test by editing `test_file.txt` to trigger the PostToolUse hook directly.
+
 ## Requirements
 
 - tmux, NeoVim 0.7+, jq
