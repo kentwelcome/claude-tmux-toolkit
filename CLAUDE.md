@@ -5,10 +5,13 @@ A Claude Code plugin that auto-opens NeoVim in a tmux split pane when files are 
 ## Project Structure
 
 ```
-.claude-plugin/       # Plugin metadata (marketplace.json, plugin.json)
-hooks/hooks.json      # PostToolUse hook definition — triggers on Write|Edit
-scripts/nvim-open.sh  # Main hook script — manages tmux panes and nvim instances
-scripts/diff-signs.lua # Git diff gutter signs — sourced by nvim after each edit
+.claude-plugin/                    # Marketplace registry (marketplace.json)
+plugins/tmux-toolkit/
+  .claude-plugin/plugin.json       # Plugin metadata
+  hooks/hooks.json                 # PostToolUse hook definition — triggers on Write|Edit
+  scripts/nvim-open.sh             # Main hook script — manages tmux panes and nvim instances
+  scripts/diff-signs.lua           # Git diff gutter signs — sourced by nvim after each edit
+  scripts/tmux-rename.sh           # SessionStart hook — renames tmux window to PascalCase
 ```
 
 ## How the Hook Works
@@ -41,7 +44,7 @@ Then restart Claude Code inside tmux. Any Write/Edit will trigger the hook.
 
 - **Bug fix**: bump patch version (e.g. 1.0.1 → 1.0.2), commit directly to main
 - **New feature**: bump minor version, reset patch to 0 (e.g. 1.0.2 → 1.1.0), create a PR — do NOT push to main directly
-- Version must be updated in `plugin.json:version` only. `marketplace.json` versions are only updated when adding a new plugin to the project
+- Version must be updated in `plugin.json:version`. Also update `marketplace.json` to keep in sync: `plugins[0].version` and `metadata.version` must always match `plugin.json:version`
 - Apply version bumps automatically with every commit/PR — do not skip or ask
 
 ## Requirements
