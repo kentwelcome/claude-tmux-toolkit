@@ -27,6 +27,19 @@ detect_tmux_session() {
     TMUX_SESSION=$(tmux display-message -p '#S' 2>/dev/null) || exit 0
 }
 
+find_target_window() {
+    # Find the tmux window that owns our TTY, so we target the correct window
+    # even if the user has switched to a different window before this hook fires.
+    TARGET_WINDOW=""
+    local my_tty
+    my_tty=$(tty 2>/dev/null) || true
+
+    if [[ -n "$my_tty" ]]; then
+        TARGET_WINDOW=$(tmux list-panes -a -F '#{pane_tty} #{window_id}' \
+            | awk -v tty="$my_tty" '$1 == tty { print $2; exit }')
+    fi
+}
+
 parse_file_path() {
     FILE_PATH=$(jq -r '.tool_input.file_path // .tool_response.filePath // empty')
     if [[ -z "$FILE_PATH" ]]; then exit 0; fi
@@ -45,11 +58,16 @@ init_env() {
 # ---------------------------------------------------------------------------
 
 scan_panes() {
-    # Find the first nvim pane and first fish pane in the current tmux window.
+    # Find the first nvim pane and first fish pane in the target tmux window.
     # Uses ASCII unit separator (0x1f) to avoid clashing with any command name.
     nvim_pane=""
     fish_pane=""
     local sep=$'\x1f'
+    local list_panes_args=()
+
+    if [[ -n "$TARGET_WINDOW" ]]; then
+        list_panes_args=(-t "$TARGET_WINDOW")
+    fi
 
     while IFS="$sep" read -r pane_id current_cmd; do
         if [[ "$current_cmd" == "nvim" && -z "$nvim_pane" ]]; then
@@ -57,9 +75,9 @@ scan_panes() {
         elif [[ "$current_cmd" == "fish" && -z "$fish_pane" ]]; then
             fish_pane="$pane_id"
         fi
-    done < <(tmux list-panes -F "#{pane_id}${sep}#{pane_current_command}")
+    done < <(tmux list-panes "${list_panes_args[@]}" -F "#{pane_id}${sep}#{pane_current_command}")
 
-    pane_count=$(tmux list-panes | wc -l | tr -d ' ')
+    pane_count=$(tmux list-panes "${list_panes_args[@]}" | wc -l | tr -d ' ')
 }
 
 # ---------------------------------------------------------------------------
@@ -90,7 +108,11 @@ open_in_existing_nvim() {
 create_split_with_nvim() {
     # No split exists — create a horizontal split with a fresh nvim instance.
     rm -f "$SOCK"   # remove stale socket from a previous nvim that exited
-    tmux split-window -h -- "$NVIM" --listen "$SOCK" -c "luafile ${DIFF_SIGNS}" "$FILE_PATH"
+    local split_args=(-h)
+    if [[ -n "$TARGET_WINDOW" ]]; then
+        split_args+=(-t "$TARGET_WINDOW")
+    fi
+    tmux split-window "${split_args[@]}" -- "$NVIM" --listen "$SOCK" -c "luafile ${DIFF_SIGNS}" "$FILE_PATH"
 }
 
 launch_nvim_in_fish_pane() {
@@ -107,6 +129,7 @@ launch_nvim_in_fish_pane() {
 
 main() {
     detect_tmux_session
+    find_target_window
     parse_file_path
     init_env
     scan_panes
