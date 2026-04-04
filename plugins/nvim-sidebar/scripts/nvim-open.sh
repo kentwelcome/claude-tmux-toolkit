@@ -75,9 +75,9 @@ scan_panes() {
         elif [[ "$current_cmd" == "fish" && -z "$fish_pane" ]]; then
             fish_pane="$pane_id"
         fi
-    done < <(tmux list-panes "${list_panes_args[@]}" -F "#{pane_id}${sep}#{pane_current_command}")
+    done < <(tmux list-panes ${list_panes_args[@]+"${list_panes_args[@]}"} -F "#{pane_id}${sep}#{pane_current_command}")
 
-    pane_count=$(tmux list-panes "${list_panes_args[@]}" | wc -l | tr -d ' ')
+    pane_count=$(tmux list-panes ${list_panes_args[@]+"${list_panes_args[@]}"} | wc -l | tr -d ' ')
 }
 
 # ---------------------------------------------------------------------------
