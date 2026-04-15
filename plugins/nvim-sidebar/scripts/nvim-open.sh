@@ -28,15 +28,50 @@ detect_tmux_session() {
 }
 
 find_target_window() {
-    # Find the tmux window that owns our TTY, so we target the correct window
-    # even if the user has switched to a different window before this hook fires.
+    # Find the tmux window that owns the process running this hook, so we target
+    # the correct window even if the user has switched to a different window
+    # before the hook fires.
+    #
+    # Cannot use `tty` here: Claude Code feeds JSON on stdin, so stdin is a pipe
+    # and `tty` prints "not a tty". We resolve the target window via two methods:
+    #   1. $TMUX_PANE — set by tmux in every pane, inherited by all children
+    #   2. Walk process ancestors to find a controlling TTY, then match it to a
+    #      tmux pane (fallback for sandboxes that strip TMUX_PANE, e.g.
+    #      agent-safehouse)
     TARGET_WINDOW=""
-    local my_tty
-    my_tty=$(tty 2>/dev/null) || true
 
-    if [[ -n "$my_tty" ]]; then
-        TARGET_WINDOW=$(tmux list-panes -a -F '#{pane_tty} #{window_id}' \
-            | awk -v tty="$my_tty" '$1 == tty { print $2; exit }')
+    if [[ -n "${TMUX_PANE:-}" ]]; then
+        TARGET_WINDOW=$(tmux display-message -t "$TMUX_PANE" -p '#{window_id}' 2>/dev/null || true)
+        if [[ -n "$TARGET_WINDOW" ]]; then
+            return
+        fi
+    fi
+
+    local pid=$$ ancestor_tty=""
+    while [[ "$pid" -gt 1 ]]; do
+        local t
+        t=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
+        if [[ -n "$t" && "$t" != "?" && "$t" != "??" ]]; then
+            ancestor_tty="$t"
+            break
+        fi
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        if [[ -z "$pid" || "$pid" == "0" ]]; then
+            break
+        fi
+    done
+
+    if [[ -n "$ancestor_tty" ]]; then
+        # tmux pane_tty is /dev/ttys001 (macOS) or /dev/pts/0 (Linux);
+        # ps -o tty= outputs "s001" or "pts/0". Strip /dev/ and the leading
+        # "tty" prefix from tmux's value before comparing.
+        TARGET_WINDOW=$(tmux list-panes -a -F '#{pane_tty} #{window_id}' 2>/dev/null \
+            | awk -v t="$ancestor_tty" '{
+                name = $1
+                sub(/^\/dev\//, "", name)
+                sub(/^tty/, "", name)
+                if (name == t) { print $2; exit }
+            }')
     fi
 }
 
@@ -46,7 +81,15 @@ parse_file_path() {
 }
 
 init_env() {
-    SOCK="/tmp/nvim-claude-${TMUX_SESSION}"
+    # Scope the socket per window so multiple Claude sessions in the same tmux
+    # session (each in its own window) don't clobber each other's nvim server.
+    # Window ids like "@3" become the "-3" suffix; if TARGET_WINDOW is unknown
+    # we fall back to the plain session-scoped path (legacy behavior).
+    local sock_suffix=""
+    if [[ -n "${TARGET_WINDOW:-}" ]]; then
+        sock_suffix="-${TARGET_WINDOW//@/}"
+    fi
+    SOCK="/tmp/nvim-claude-${TMUX_SESSION}${sock_suffix}"
     DIFF_SIGNS="${SCRIPT_DIR}/diff-signs.lua"
 
     # Full path to nvim — needed when tmux split-window inherits a minimal PATH

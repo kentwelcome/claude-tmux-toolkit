@@ -1,7 +1,7 @@
 {
   "name": "rename-window",
   "description": "Renames the tmux window to the current project folder name in PascalCase on session start.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": {
     "name": "Kent Huang",
     "email": "kentwelcome@gmail.com"
