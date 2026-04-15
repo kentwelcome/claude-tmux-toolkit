@@ -38,11 +38,19 @@ teardown() {
 }
 
 # Run the hook in the context of the test session (sets TMUX correctly)
+#
+# Real Claude Code hooks inherit TMUX_PANE from the shell running Claude.
+# `tmux run-shell` does NOT export TMUX_PANE, so we set it explicitly to
+# match what the hook would see under real usage.
 run_hook() {
     local file="${1:-$TEST_FILE}"
+    local target_window="${2:-${SESSION}:0}"
+    local pane_id
+    pane_id=$(tmux display-message -t "${target_window}.0" -p '#{pane_id}')
     local json
     json='{"tool_input":{"file_path":"'"$file"'"}}'
-    tmux run-shell -t "${SESSION}:0" "echo '$json' | $HOOK 2>&1 || true"
+    tmux run-shell -t "${target_window}" \
+        "export TMUX_PANE='$pane_id'; echo '$json' | $HOOK 2>&1 || true"
 }
 
 pane_count() {
@@ -192,6 +200,32 @@ test_two_splits() {
     teardown
 }
 
+# Test 6: Hook fires in window 0 while user is viewing window 1 — split must
+# land in window 0 (the Claude window), not in the currently-active window 1.
+# This guards against the `tty` detection bug, where stdin is a pipe and the
+# hook used to fall back to "active window" targeting.
+test_multi_window() {
+    echo "Test 6: Hook from Claude in window 0 while window 1 is active → split opens in window 0"
+    setup
+    tmux new-window -t "${SESSION}" -d bash    # create window 1 (background)
+    tmux select-window -t "${SESSION}:1"       # focus window 1 — the decoy
+
+    run_hook                                    # run-shell -t sess:0 → TMUX_PANE = window 0's pane
+    sleep 3
+
+    local count_w0 count_w1
+    count_w0=$(tmux list-panes -t "${SESSION}:0" 2>/dev/null | wc -l | tr -d ' ')
+    count_w1=$(tmux list-panes -t "${SESSION}:1" 2>/dev/null | wc -l | tr -d ' ')
+
+    if [ "$count_w0" -eq 2 ] && [ "$count_w1" -eq 1 ]; then
+        pass "split created in window 0 (Claude's window), window 1 untouched"
+    else
+        fail "expected w0=2 panes, w1=1 pane — got w0=$count_w0 w1=$count_w1"
+    fi
+
+    teardown
+}
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -207,6 +241,8 @@ echo ""
 test_nvim_already_open
 echo ""
 test_two_splits
+echo ""
+test_multi_window
 
 echo ""
 echo "══════════════════════"

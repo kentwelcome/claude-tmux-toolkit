@@ -18,15 +18,50 @@ if [ -z "${TMUX:-}" ]; then
 fi
 
 find_window_id() {
-  # Find the tmux window that owns our TTY, so we rename the correct window
-  # even if the user has switched to a different window before this hook fires.
-  local my_tty
-  my_tty=$(tty 2>/dev/null) || true
-
-  if [ -n "$my_tty" ]; then
+  # Find the tmux window that owns the process running this hook, so we rename
+  # the correct window even if the user has switched to a different window
+  # before the hook fires.
+  #
+  # Cannot rely on `tty`: Claude Code may feed data on stdin, making it a pipe
+  # where `tty` prints "not a tty". We resolve via two methods:
+  #   1. $TMUX_PANE — set by tmux in every pane, inherited by all children
+  #   2. Walk process ancestors to find a controlling TTY, then match it to a
+  #      tmux pane (fallback for sandboxes that strip TMUX_PANE)
+  if [ -n "${TMUX_PANE:-}" ]; then
     local window_id
-    window_id=$(tmux list-panes -a -F '#{pane_tty} #{window_id}' \
-      | awk -v tty="$my_tty" '$1 == tty { print $2; exit }')
+    window_id=$(tmux display-message -t "$TMUX_PANE" -p '#{window_id}' 2>/dev/null || true)
+    if [ -n "$window_id" ]; then
+      echo "$window_id"
+      return
+    fi
+  fi
+
+  local pid=$$ ancestor_tty=""
+  while [ "$pid" -gt 1 ]; do
+    local t
+    t=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
+    if [ -n "$t" ] && [ "$t" != "?" ] && [ "$t" != "??" ]; then
+      ancestor_tty="$t"
+      break
+    fi
+    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    if [ -z "$pid" ] || [ "$pid" = "0" ]; then
+      break
+    fi
+  done
+
+  if [ -n "$ancestor_tty" ]; then
+    # tmux pane_tty is /dev/ttys001 (macOS) or /dev/pts/0 (Linux);
+    # ps -o tty= outputs "s001" or "pts/0". Strip /dev/ and the leading
+    # "tty" prefix from tmux's value before comparing.
+    local window_id
+    window_id=$(tmux list-panes -a -F '#{pane_tty} #{window_id}' 2>/dev/null \
+      | awk -v t="$ancestor_tty" '{
+          name = $1
+          sub(/^\/dev\//, "", name)
+          sub(/^tty/, "", name)
+          if (name == t) { print $2; exit }
+        }')
     if [ -n "$window_id" ]; then
       echo "$window_id"
       return
