@@ -28,18 +28,30 @@ detect_tmux_session() {
 }
 
 find_target_window() {
-    # Find the tmux window that owns the process running this hook, so we target
-    # the correct window even if the user has switched to a different window
-    # before the hook fires.
+    # Find the tmux window where Claude Code is running, so we target the
+    # correct window even if the user has switched to a different one.
     #
-    # Cannot use `tty` here: Claude Code feeds JSON on stdin, so stdin is a pipe
-    # and `tty` prints "not a tty". We resolve the target window via two methods:
-    #   1. $TMUX_PANE — set by tmux in every pane, inherited by all children
-    #   2. Walk process ancestors to find a controlling TTY, then match it to a
-    #      tmux pane (fallback for sandboxes that strip TMUX_PANE, e.g.
-    #      agent-safehouse)
+    # Three methods, tried in order:
+    #   1. Read window ID captured at SessionStart (most reliable — works in
+    #      all sandbox environments since it uses only tmux + file I/O)
+    #   2. $TMUX_PANE env var (works outside sandboxes)
+    #   3. Walk process ancestors to find a controlling TTY (fallback)
     TARGET_WINDOW=""
 
+    # Method 1: file written by capture-window.sh at SessionStart
+    local key
+    key=$(printf '%s' "$PWD" | shasum | cut -c1-8)
+    local stored
+    stored=$(cat "/tmp/nvim-claude-window-${TMUX_SESSION}-${key}" 2>/dev/null) || true
+    if [[ -n "$stored" ]]; then
+        # Verify the window still exists before using it
+        if tmux display-message -t "$stored" -p '#{window_id}' &>/dev/null; then
+            TARGET_WINDOW="$stored"
+            return
+        fi
+    fi
+
+    # Method 2: $TMUX_PANE — set by tmux in every pane, inherited by children
     if [[ -n "${TMUX_PANE:-}" ]]; then
         TARGET_WINDOW=$(tmux display-message -t "$TMUX_PANE" -p '#{window_id}' 2>/dev/null || true)
         if [[ -n "$TARGET_WINDOW" ]]; then
@@ -47,6 +59,7 @@ find_target_window() {
         fi
     fi
 
+    # Method 3: walk process ancestors to find a controlling TTY
     local pid=$$ ancestor_tty=""
     while [[ "$pid" -gt 1 ]]; do
         local t
@@ -62,9 +75,6 @@ find_target_window() {
     done
 
     if [[ -n "$ancestor_tty" ]]; then
-        # tmux pane_tty is /dev/ttys001 (macOS) or /dev/pts/0 (Linux);
-        # ps -o tty= outputs "s001" or "pts/0". Strip /dev/ and the leading
-        # "tty" prefix from tmux's value before comparing.
         TARGET_WINDOW=$(tmux list-panes -a -F '#{pane_tty} #{window_id}' 2>/dev/null \
             | awk -v t="$ancestor_tty" '{
                 name = $1
