@@ -50,12 +50,12 @@ find_target_window() {
     local pid=$$ ancestor_tty=""
     while [[ "$pid" -gt 1 ]]; do
         local t
-        t=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
+        t=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ') || true
         if [[ -n "$t" && "$t" != "?" && "$t" != "??" ]]; then
             ancestor_tty="$t"
             break
         fi
-        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ') || true
         if [[ -z "$pid" || "$pid" == "0" ]]; then
             break
         fi
